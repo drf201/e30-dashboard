@@ -4,30 +4,119 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>E30 BLE Telemetry</title>
     <style>
-        html, body { background-color: #000000; color: #ff4500; font-family: -apple-system, sans-serif; text-align: center; margin: 0; padding: 0; height: 100vh; width: 100vw; overflow: hidden; }
-        #dashboard { height: 100vh; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; padding: 2vh 0 3vh 0; width: 94%; margin: 0 auto; }
+        html, body { 
+            background-color: #000000; 
+            color: #ff4500; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            text-align: center; 
+            margin: 0; 
+            padding: 0; 
+            height: 100vh; 
+            width: 100vw; 
+            overflow: hidden; 
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        #dashboard { 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            box-sizing: border-box; 
+            padding-top: max(2vh, env(safe-area-inset-top)); 
+            padding-bottom: max(3vh, env(safe-area-inset-bottom)); 
+            padding-left: max(3vw, env(safe-area-inset-left));
+            padding-right: max(3vw, env(safe-area-inset-right));
+            width: 100%; 
+            margin: 0 auto; 
+        }
         
-        .lane-hero { width: 100%; display: flex; flex-direction: column; justify-content: center; flex: 1.4 1 0%; border-bottom: 1px solid #1c1c1c; }
-        .lane-hero .number { font-size: 11vh; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 0.9; }
+        .lane-hero { 
+            width: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            flex: 1.4 1 0%; 
+            border-bottom: 1px solid #1c1c1c; 
+        }
+        .lane-hero .number { 
+            font-size: 11vh; 
+            font-weight: 800; 
+            font-variant-numeric: tabular-nums; 
+            line-height: 0.9; 
+        }
         
-        .grid-row { display: flex; justify-content: space-between; width: 100%; flex: 1 1 0%; align-items: center; }
-        .lane-split { flex: 0 0 48%; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid #1c1c1c; height: 100%; }
-        .lane-split .number { font-size: 7vh; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.0; }
+        .grid-row { 
+            display: flex; 
+            justify-content: space-between; 
+            width: 100%; 
+            flex: 1 1 0%; 
+            align-items: center; 
+        }
+        .lane-split { 
+            flex: 0 0 48%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            border-bottom: 1px solid #1c1c1c; 
+            height: 100%; 
+        }
+        .lane-split .number { 
+            font-size: 7vh; 
+            font-weight: 800; 
+            font-variant-numeric: tabular-nums; 
+            line-height: 1.0; 
+        }
         
         .lane-hero:last-child { border-bottom: none; }
-        .label { font-size: 10px; color: #555555; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; font-weight: 600; }
-        .unit { font-size: 14px; color: #444444; margin-left: 3px; font-weight: 400; }
-        
-        .col-orange { color: #ff4500; }
-        .col-blue { color: #00ccff; }
-        .col-red { color: #ff3333; }
-        
-        .offline { color: #ff3333; font-weight: 800; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.4; } }
+        .label { 
+            font-size: 10px; 
+            color: #555555; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            margin-bottom: 2px; 
+            font-weight: 600; 
+        }
+        .unit { 
+            font-size: 14px; 
+            color: #444444; 
+            margin-left: 3px; 
+            font-weight: 400; 
+        }
 
         /* Connect Button Overlay */
-        #connect-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
-        #connect-btn { background-color: #ff4500; color: #000; border: none; padding: 20px 40px; font-size: 20px; font-weight: bold; border-radius: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+        #connect-overlay { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100vw; 
+            height: 100vh; 
+            background: rgba(0,0,0,0.95); 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            align-items: center; 
+            z-index: 999; 
+        }
+        #connect-btn { 
+            background-color: #ff4500; 
+            color: #000000; 
+            border: none; 
+            padding: 22px 44px; 
+            font-size: 20px; 
+            font-weight: 800; 
+            border-radius: 14px; 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            letter-spacing: 1.5px; 
+            box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
+        }
+        #connect-btn:active {
+            transform: scale(0.97);
+            background-color: #e03e00;
+        }
     </style>
 </head>
 <body>
@@ -92,7 +181,6 @@
                 await characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
                 
-                // Hide connection overlay and request wake lock to keep screen active
                 document.getElementById('connect-overlay').style.display = 'none';
                 await requestWakeLock();
             } catch (error) {
@@ -101,34 +189,33 @@
         }
 
         function handleTelemetryData(event) {
-    const value = event.target.value;
-    
-    // Map the incoming TelemetryPacket binary structure with correct byte offsets
-    // Float32 = 4 bytes, Int16 = 2 bytes, Uint8 = 1 byte
-    const afr    = value.getFloat32(0, true);   // Offset 0-3
-    const clt    = value.getInt16(4, true);     // Offset 4-5
-    const oilt   = value.getInt16(6, true);     // Offset 6-7
-    const oilp   = value.getInt16(8, true);     // Offset 8-9
-    const iat    = value.getInt16(10, true);    // Offset 10-11
-    const vss    = value.getInt16(12, true);    // Offset 12-13
-    const mpg    = value.getFloat32(14, true);  // Offset 14-17
-    const avgmpg = value.getFloat32(18, true);  // Offset 18-21
-    const rpm    = value.getUint16(22, true);   // Offset 22-23 (changed to Uint16 to match standard RPM)
-    const volt   = value.getFloat32(24, true);  // Offset 24-27
-    const online = value.getUint8(28);          // Offset 28
+            const value = event.target.value;
+            
+            // Map the incoming TelemetryPacket binary structure matching packed C++ struct layout
+            const afr    = value.getFloat32(0, true);
+            const clt    = value.getInt16(4, true);
+            const oilt   = value.getInt16(6, true);
+            const oilp   = value.getInt16(8, true);
+            const iat    = value.getInt16(10, true);
+            const vss    = value.getInt16(12, true);
+            const mpg    = value.getFloat32(14, true);
+            const avgmpg = value.getFloat32(18, true);
+            const rpm    = value.getUint16(22, true);
+            const volt   = value.getFloat32(24, true);
+            const online = value.getUint8(28);
 
-    // Update UI elements
-    document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
-    document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
-    document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
-    document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
-    document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
-    document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
-    document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
-    document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
-    document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
-    document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
-}
+            // Update UI elements
+            document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
+            document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
+            document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
+            document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
+            document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
+            document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
+            document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
+            document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
+        }
     </script>
 </body>
 </html>

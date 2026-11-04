@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>E30 BLE Telemetry</title>
+    <style>
+        html, body { background-color: #000000; color: #ff4500; font-family: -apple-system, sans-serif; text-align: center; margin: 0; padding: 0; height: 100vh; width: 100vw; overflow: hidden; }
+        #dashboard { height: 100vh; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; padding: 2vh 0 3vh 0; width: 94%; margin: 0 auto; }
+        
+        .lane-hero { width: 100%; display: flex; flex-direction: column; justify-content: center; flex: 1.4 1 0%; border-bottom: 1px solid #1c1c1c; }
+        .lane-hero .number { font-size: 11vh; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 0.9; }
+        
+        .grid-row { display: flex; justify-content: space-between; width: 100%; flex: 1 1 0%; align-items: center; }
+        .lane-split { flex: 0 0 48%; display: flex; flex-direction: column; justify-content: center; border-bottom: 1px solid #1c1c1c; height: 100%; }
+        .lane-split .number { font-size: 7vh; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.0; }
+        
+        .lane-hero:last-child { border-bottom: none; }
+        .label { font-size: 10px; color: #555555; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; font-weight: 600; }
+        .unit { font-size: 14px; color: #444444; margin-left: 3px; font-weight: 400; }
+        
+        .col-orange { color: #ff4500; }
+        .col-blue { color: #00ccff; }
+        .col-red { color: #ff3333; }
+        
+        .offline { color: #ff3333; font-weight: 800; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+
+        /* Connect Button Overlay */
+        #connect-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; }
+        #connect-btn { background-color: #ff4500; color: #000; border: none; padding: 20px 40px; font-size: 20px; font-weight: bold; border-radius: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 1px; }
+    </style>
+</head>
+<body>
+    <div id="connect-overlay">
+        <button id="connect-btn" onclick="connectBLE()">Connect Dashboard</button>
+    </div>
+
+    <div id="dashboard">
+        <div class="lane-hero"><div class="label">Air-Fuel Ratio (AFR)</div><div id="afr" class="number">--</div></div>
+        
+        <div class="grid-row">
+            <div class="lane-split"><div class="label">Oil Temp</div><div id="oilt" class="number">--</div></div>
+            <div class="lane-split"><div class="label">Oil Pressure</div><div id="oilp" class="number">--</div></div>
+        </div>
+        
+        <div class="grid-row">
+            <div class="lane-split"><div class="label">Coolant Temp</div><div id="clt" class="number">--</div></div>
+            <div class="lane-split"><div class="label">Intake Air (IAT)</div><div id="iat" class="number">--</div></div>
+        </div>
+        
+        <div class="grid-row">
+            <div class="lane-split"><div class="label">Inst. MPG</div><div id="mpg" class="number">--</div></div>
+            <div class="lane-split"><div class="label">Avg MPG</div><div id="avgmpg" class="number">--</div></div>
+        </div>
+        
+        <div class="grid-row">
+            <div class="lane-split"><div class="label">System Volt</div><div id="volt" class="number">--</div></div>
+            <div class="lane-split"><div class="label">Engine RPM</div><div id="rpm" class="number">--</div></div>
+        </div>
+        
+        <div class="lane-hero"><div class="label">Vehicle Speed (VSS)</div><div id="vss" class="number">--</div></div>
+    </div>
+
+    <script>
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+        async function connectBLE() {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'E30_' }],
+            optionalServices: [SERVICE_UUID]
+        });
+        
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+        
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
+        
+        document.getElementById('connect-overlay').style.display = 'none';
+    } catch (error) {
+        console.log('Bluetooth connection failed: ', error);
+    }
+}
+        function handleTelemetryData(event) {
+            const value = event.target.value;
+            
+            // Map the incoming TelemetryPacket binary structure from the ESP32
+            const afr = value.getFloat32(0, true);
+            const clt = value.getInt16(4, true);
+            const oilt = value.getInt16(6, true);
+            const oilp = value.getInt16(8, true);
+            const iat = value.getInt16(10, true);
+            const vss = value.getInt16(12, true);
+            const mpg = value.getFloat32(14, true);
+            const avgmpg = value.getFloat32(18, true);
+            const rpm = value.getInt16(22, true);
+            const volt = value.getFloat32(24, true);
+            const online = value.getUint8(28);
+
+            // Update UI elements
+            document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
+            document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
+            document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
+            document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
+            document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
+            document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
+            document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
+            document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
+        }
+    </script>
+</body>
+</html>

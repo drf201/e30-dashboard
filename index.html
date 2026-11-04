@@ -101,33 +101,34 @@
         }
 
         function handleTelemetryData(event) {
-            const value = event.target.value;
-            
-            // Map the incoming TelemetryPacket binary structure from the ESP32
-            const afr = value.getFloat32(0, true);
-            const clt = value.getInt16(4, true);
-            const oilt = value.getInt16(6, true);
-            const oilp = value.getInt16(8, true);
-            const iat = value.getInt16(10, true);
-            const vss = value.getInt16(12, true);
-            const mpg = value.getFloat32(14, true);
-            const avgmpg = value.getFloat32(18, true);
-            const rpm = value.getInt16(22, true);
-            const volt = value.getFloat32(24, true);
-            const online = value.getUint8(28);
+    const value = event.target.value;
+    
+    // Map the incoming TelemetryPacket binary structure with correct byte offsets
+    // Float32 = 4 bytes, Int16 = 2 bytes, Uint8 = 1 byte
+    const afr    = value.getFloat32(0, true);   // Offset 0-3
+    const clt    = value.getInt16(4, true);     // Offset 4-5
+    const oilt   = value.getInt16(6, true);     // Offset 6-7
+    const oilp   = value.getInt16(8, true);     // Offset 8-9
+    const iat    = value.getInt16(10, true);    // Offset 10-11
+    const vss    = value.getInt16(12, true);    // Offset 12-13
+    const mpg    = value.getFloat32(14, true);  // Offset 14-17
+    const avgmpg = value.getFloat32(18, true);  // Offset 18-21
+    const rpm    = value.getUint16(22, true);   // Offset 22-23 (changed to Uint16 to match standard RPM)
+    const volt   = value.getFloat32(24, true);  // Offset 24-27
+    const online = value.getUint8(28);          // Offset 28
 
-            // Update UI elements
-            document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
-            document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
-            document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
-            document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
-            document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
-            document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
-            document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
-            document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
-        }
+    // Update UI elements
+    document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
+    document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
+    document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
+    document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
+    document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
+    document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
+    document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
+    document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
+    document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
+    document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
+}
     </script>
 </body>
 </html>

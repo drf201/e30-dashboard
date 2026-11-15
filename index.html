@@ -13,9 +13,7 @@
             padding: 0; 
             height: 100vh; 
             width: 100vw; 
-            overflow: hidden; // --- BLE UUIDs ---
-#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aae"
+            overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
@@ -108,6 +106,8 @@
             justify-content: center; 
             align-items: center; 
             z-index: 999; 
+            padding: 20px;
+            box-sizing: border-box;
         }
         #connect-btn { 
             background-color: #ff4500; 
@@ -126,11 +126,19 @@
             transform: scale(0.97);
             background-color: #e03e00;
         }
+        #status-msg {
+            margin-top: 20px;
+            color: #888888;
+            font-size: 13px;
+            max-width: 85vw;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
     <div id="connect-overlay">
         <button id="connect-btn" onclick="connectBLE()">Connect Dashboard</button>
+        <div id="status-msg">Ready</div>
     </div>
 
     <div id="dashboard">
@@ -160,16 +168,17 @@
     </div>
 
     <script>
-        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26aae";
+        // Make sure these match your Arduino .ino file character-for-character (36 chars each)
+        const SERVICE_UUID        = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
         let wakeLock = null;
+        const statusEl = document.getElementById('status-msg');
 
         async function requestWakeLock() {
             try {
                 if ('wakeLock' in navigator) {
                     wakeLock = await navigator.wakeLock.request('screen');
-                    console.log('Screen Wake Lock active');
                 }
             } catch (err) {
                 console.log(`Wake Lock error: ${err.name}, ${err.message}`);
@@ -177,31 +186,46 @@
         }
 
         async function connectBLE() {
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: 'E30_' }],
-            optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
-        });
-        
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
-        const characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26aae');
-        
-        await characteristic.startNotifications();
-        characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
-        
-        document.getElementById('connect-overlay').style.display = 'none';
-        await requestWakeLock();
-    } catch (error) {
-        console.log('Bluetooth connection failed: ', error);
-        alert('Connection failed: ' + error.message);
-    }
-}
+            try {
+                statusEl.textContent = "Scanning for E30_...";
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: 'E30_' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+                
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+
+                statusEl.textContent = "Connecting to GATT server...";
+                const server = await device.gatt.connect();
+
+                statusEl.textContent = "Discovering primary service...";
+                const service = await server.getPrimaryService(SERVICE_UUID);
+
+                statusEl.textContent = "Getting telemetry characteristic...";
+                const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                
+                statusEl.textContent = "Starting notifications...";
+                await characteristic.startNotifications();
+                characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
+                
+                document.getElementById('connect-overlay').style.display = 'none';
+                await requestWakeLock();
+            } catch (error) {
+                console.log('Bluetooth connection failed: ', error);
+                statusEl.textContent = "Error: " + error.message;
+                statusEl.style.color = "#ff3333";
+            }
+        }
+
+        function onDisconnected(event) {
+            document.getElementById('connect-overlay').style.display = 'flex';
+            statusEl.textContent = "Disconnected. Tap to reconnect.";
+            statusEl.style.color = "#ff3333";
+        }
 
         function handleTelemetryData(event) {
             const value = event.target.value;
             
-            // Map the incoming TelemetryPacket binary structure matching packed C++ struct layout
             const afr    = value.getFloat32(0, true);
             const clt    = value.getInt16(4, true);
             const oilt   = value.getInt16(6, true);
@@ -214,17 +238,16 @@
             const volt   = value.getFloat32(24, true);
             const online = value.getUint8(28);
 
-            // Update UI elements
-            document.getElementById('afr').innerHTML = afr.toFixed(1) + '<span class="unit">AFR</span>';
-            document.getElementById('clt').innerHTML = clt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilt').innerHTML = oilt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilp').innerHTML = oilp + '<span class="unit">PSI</span>';
-            document.getElementById('iat').innerHTML = iat + '<span class="unit">&deg;F</span>';
-            document.getElementById('mpg').innerHTML = mpg.toFixed(1) + '<span class="unit">INST</span>';
+            document.getElementById('afr').innerHTML    = afr.toFixed(1) + '<span class="unit">AFR</span>';
+            document.getElementById('clt').innerHTML    = clt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilt').innerHTML   = oilt + '<span class="unit">&deg;F</span>';
+            document.getElementById('oilp').innerHTML   = oilp + '<span class="unit">PSI</span>';
+            document.getElementById('iat').innerHTML    = iat + '<span class="unit">&deg;F</span>';
+            document.getElementById('mpg').innerHTML    = mpg.toFixed(1) + '<span class="unit">INST</span>';
             document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
-            document.getElementById('volt').innerHTML = volt.toFixed(1) + '<span class="unit">V</span>';
-            document.getElementById('rpm').innerHTML = rpm + '<span class="unit">RPM</span>';
-            document.getElementById('vss').innerHTML = vss + '<span class="unit">MPH</span>';
+            document.getElementById('volt').innerHTML   = volt.toFixed(1) + '<span class="unit">V</span>';
+            document.getElementById('rpm').innerHTML    = rpm + '<span class="unit">RPM</span>';
+            document.getElementById('vss').innerHTML    = vss + '<span class="unit">MPH</span>';
         }
     </script>
 </body>

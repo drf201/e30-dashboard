@@ -13,7 +13,9 @@
             padding: 0; 
             height: 100vh; 
             width: 100vw; 
-            overflow: hidden; 
+            overflow: hidden; // --- BLE UUIDs ---
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26aae"
             user-select: none;
             -webkit-user-select: none;
             -webkit-touch-callout: none;
@@ -175,26 +177,26 @@
         }
 
         async function connectBLE() {
-            try {
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [{ namePrefix: 'E30_' }],
-                    optionalServices: [SERVICE_UUID]
-                });
-                
-                const server = await device.gatt.connect();
-                const service = await server.getPrimaryService(SERVICE_UUID);
-                const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
-                
-                await characteristic.startNotifications();
-                characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
-                
-                document.getElementById('connect-overlay').style.display = 'none';
-                await requestWakeLock();
-            } catch (error) {
-                console.log('Bluetooth connection failed: ', error);
-                alert('Connection failed: ' + error.message);
-            }
-        }
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ namePrefix: 'E30_' }],
+            optionalServices: ['4fafc201-1fb5-459e-8fcc-c5c9c331914b']
+        });
+        
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('4fafc201-1fb5-459e-8fcc-c5c9c331914b');
+        const characteristic = await service.getCharacteristic('beb5483e-36e1-4688-b7f5-ea07361b26aae');
+        
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
+        
+        document.getElementById('connect-overlay').style.display = 'none';
+        await requestWakeLock();
+    } catch (error) {
+        console.log('Bluetooth connection failed: ', error);
+        alert('Connection failed: ' + error.message);
+    }
+}
 
         function handleTelemetryData(event) {
             const value = event.target.value;

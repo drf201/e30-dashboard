@@ -1,6 +1,7 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>E30 BLE Telemetry</title>
     <style>
@@ -16,7 +17,6 @@
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            -webkit-touch-callout: none;
         }
 
         #dashboard { 
@@ -25,12 +25,8 @@
             flex-direction: column; 
             justify-content: space-between; 
             box-sizing: border-box; 
-            padding-top: max(2vh, env(safe-area-inset-top)); 
-            padding-bottom: max(3vh, env(safe-area-inset-bottom)); 
-            padding-left: max(3vw, env(safe-area-inset-left));
-            padding-right: max(3vw, env(safe-area-inset-right));
+            padding: max(2vh, env(safe-area-inset-top)) max(3vw, env(safe-area-inset-right)) max(3vh, env(safe-area-inset-bottom)) max(3vw, env(safe-area-inset-left));
             width: 100%; 
-            margin: 0 auto; 
         }
         
         .lane-hero { 
@@ -42,7 +38,7 @@
             border-bottom: 1px solid #1c1c1c; 
         }
         .lane-hero .number { 
-            font-size: 11vh; 
+            font-size: 10vh; 
             font-weight: 800; 
             font-variant-numeric: tabular-nums; 
             line-height: 0.9; 
@@ -64,13 +60,12 @@
             height: 100%; 
         }
         .lane-split .number { 
-            font-size: 7vh; 
+            font-size: 6vh; 
             font-weight: 800; 
             font-variant-numeric: tabular-nums; 
             line-height: 1.0; 
         }
         
-        .lane-hero:last-child { border-bottom: none; }
         .label { 
             font-size: 10px; 
             color: #555555; 
@@ -80,20 +75,13 @@
             font-weight: 600; 
         }
         .unit { 
-            font-size: 14px; 
+            font-size: 13px; 
             color: #444444; 
             margin-left: 3px; 
             font-weight: 400; 
         }
 
-        .col-orange { color: #ff4500; }
-        .col-blue { color: #00ccff; }
-        .col-red { color: #ff3333; }
-
-        .offline { color: #ff3333; font-weight: 800; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.4; } }
-
-        /* Connect Button Overlay */
+        /* Connect Overlay */
         #connect-overlay { 
             position: fixed; 
             top: 0; 
@@ -122,16 +110,10 @@
             letter-spacing: 1.5px; 
             box-shadow: 0 4px 15px rgba(255, 69, 0, 0.4);
         }
-        #connect-btn:active {
-            transform: scale(0.97);
-            background-color: #e03e00;
-        }
         #status-msg {
             margin-top: 20px;
-            color: #888888;
+            color: #777777;
             font-size: 13px;
-            max-width: 85vw;
-            word-wrap: break-word;
         }
     </style>
 </head>
@@ -174,20 +156,8 @@
         let wakeLock = null;
         const statusEl = document.getElementById('status-msg');
 
-        async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) {
-                console.log(`Wake Lock error: ${err.name}, ${err.message}`);
-            }
-        }
-
         async function connectBLE() {
-            let currentStep = "Initialization";
             try {
-                currentStep = "Requesting Bluetooth Device";
                 statusEl.textContent = "Scanning for E30_...";
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'E30_' }],
@@ -196,70 +166,62 @@
                 
                 device.addEventListener('gattserverdisconnected', onDisconnected);
 
-                currentStep = "Connecting to GATT Server";
-                statusEl.textContent = "Connecting to GATT server...";
+                statusEl.textContent = "Connecting to GATT...";
                 const server = await device.gatt.connect();
 
-                currentStep = "Discovering Primary Service";
-                statusEl.textContent = "Discovering primary service...";
+                statusEl.textContent = "Discovering service...";
                 const service = await server.getPrimaryService(SERVICE_UUID);
 
-                currentStep = "Getting Telemetry Characteristic";
                 statusEl.textContent = "Getting characteristic...";
                 const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 
-                currentStep = "Starting Notifications";
                 statusEl.textContent = "Starting notifications...";
                 await characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
                 
                 document.getElementById('connect-overlay').style.display = 'none';
-                await requestWakeLock();
-            } catch (error) {
-                console.log('Bluetooth connection failed at ' + currentStep + ': ', error);
-                let errStr = "Cancelled or rejected";
-                if (error) {
-                    if (typeof error === 'string') errStr = error;
-                    else if (error.message) errStr = error.message;
-                    else if (error.name) errStr = error.name;
-                    else errStr = JSON.stringify(error);
+                
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen').catch(() => {});
                 }
-                statusEl.textContent = `Failed [${currentStep}]: ${errStr}`;
+            } catch (error) {
+                console.log('BLE Error:', error);
+                statusEl.textContent = "Error: " + (error.message || error.name || "Connection failed");
                 statusEl.style.color = "#ff3333";
             }
         }
 
-        function onDisconnected(event) {
+        function onDisconnected() {
             document.getElementById('connect-overlay').style.display = 'flex';
             statusEl.textContent = "Disconnected. Tap to reconnect.";
             statusEl.style.color = "#ff3333";
         }
 
         function handleTelemetryData(event) {
-            const value = event.target.value;
-            
-            const afr    = value.getFloat32(0, true);
-            const clt    = value.getInt16(4, true);
-            const oilt   = value.getInt16(6, true);
-            const oilp   = value.getInt16(8, true);
-            const iat    = value.getInt16(10, true);
-            const vss    = value.getInt16(12, true);
-            const mpg    = value.getFloat32(14, true);
-            const avgmpg = value.getFloat32(18, true);
-            const rpm    = value.getUint16(22, true);
-            const volt   = value.getFloat32(24, true);
-            const online = value.getUint8(28);
+            const val = event.target.value;
+            if (val.byteLength >= 29) {
+                const afr    = val.getFloat32(0, true);
+                const clt    = val.getInt16(4, true);
+                const oilt   = val.getInt16(6, true);
+                const oilp   = val.getInt16(8, true);
+                const iat    = val.getInt16(10, true);
+                const vss    = val.getInt16(12, true);
+                const mpg    = val.getFloat32(14, true);
+                const avgmpg = val.getFloat32(18, true);
+                const rpm    = val.getUint16(22, true);
+                const volt   = val.getFloat32(24, true);
 
-            document.getElementById('afr').innerHTML    = afr.toFixed(1) + '<span class="unit">AFR</span>';
-            document.getElementById('clt').innerHTML    = clt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilt').innerHTML   = oilt + '<span class="unit">&deg;F</span>';
-            document.getElementById('oilp').innerHTML   = oilp + '<span class="unit">PSI</span>';
-            document.getElementById('iat').innerHTML    = iat + '<span class="unit">&deg;F</span>';
-            document.getElementById('mpg').innerHTML    = mpg.toFixed(1) + '<span class="unit">INST</span>';
-            document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
-            document.getElementById('volt').innerHTML   = volt.toFixed(1) + '<span class="unit">V</span>';
-            document.getElementById('rpm').innerHTML    = rpm + '<span class="unit">RPM</span>';
-            document.getElementById('vss').innerHTML    = vss + '<span class="unit">MPH</span>';
+                document.getElementById('afr').innerHTML    = afr.toFixed(1) + '<span class="unit">AFR</span>';
+                document.getElementById('clt').innerHTML    = clt + '<span class="unit">&deg;F</span>';
+                document.getElementById('oilt').innerHTML   = oilt + '<span class="unit">&deg;F</span>';
+                document.getElementById('oilp').innerHTML   = oilp + '<span class="unit">PSI</span>';
+                document.getElementById('iat').innerHTML    = iat + '<span class="unit">&deg;F</span>';
+                document.getElementById('mpg').innerHTML    = mpg.toFixed(1) + '<span class="unit">INST</span>';
+                document.getElementById('avgmpg').innerHTML = avgmpg.toFixed(1) + '<span class="unit">AVG</span>';
+                document.getElementById('volt').innerHTML   = volt.toFixed(1) + '<span class="unit">V</span>';
+                document.getElementById('rpm').innerHTML    = rpm + '<span class="unit">RPM</span>';
+                document.getElementById('vss').innerHTML    = vss + '<span class="unit">MPH</span>';
+            }
         }
     </script>
 </body>

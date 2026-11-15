@@ -185,7 +185,9 @@
         }
 
         async function connectBLE() {
+            let currentStep = "Initialization";
             try {
+                currentStep = "Requesting Bluetooth Device";
                 statusEl.textContent = "Scanning for E30_...";
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: 'E30_' }],
@@ -194,15 +196,19 @@
                 
                 device.addEventListener('gattserverdisconnected', onDisconnected);
 
+                currentStep = "Connecting to GATT Server";
                 statusEl.textContent = "Connecting to GATT server...";
                 const server = await device.gatt.connect();
 
+                currentStep = "Discovering Primary Service";
                 statusEl.textContent = "Discovering primary service...";
                 const service = await server.getPrimaryService(SERVICE_UUID);
 
-                statusEl.textContent = "Getting telemetry characteristic...";
+                currentStep = "Getting Telemetry Characteristic";
+                statusEl.textContent = "Getting characteristic...";
                 const characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
                 
+                currentStep = "Starting Notifications";
                 statusEl.textContent = "Starting notifications...";
                 await characteristic.startNotifications();
                 characteristic.addEventListener('characteristicvaluechanged', handleTelemetryData);
@@ -210,9 +216,15 @@
                 document.getElementById('connect-overlay').style.display = 'none';
                 await requestWakeLock();
             } catch (error) {
-                console.log('Bluetooth connection failed: ', error);
-                let errString = error.message || error.toString() || JSON.stringify(error);
-                statusEl.textContent = "Error: " + errString;
+                console.log('Bluetooth connection failed at ' + currentStep + ': ', error);
+                let errStr = "Cancelled or rejected";
+                if (error) {
+                    if (typeof error === 'string') errStr = error;
+                    else if (error.message) errStr = error.message;
+                    else if (error.name) errStr = error.name;
+                    else errStr = JSON.stringify(error);
+                }
+                statusEl.textContent = `Failed [${currentStep}]: ${errStr}`;
                 statusEl.style.color = "#ff3333";
             }
         }

@@ -86,6 +86,13 @@
             font-weight: 400; 
         }
 
+        .col-orange { color: #ff4500; }
+        .col-blue { color: #00ccff; }
+        .col-red { color: #ff3333; }
+
+        .offline { color: #ff3333; font-weight: 800; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+
         /* Connect Button Overlay */
         #connect-overlay { 
             position: fixed; 
@@ -152,7 +159,6 @@
 
     <script>
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
-        // Updated to match ESP32 firmware characteristic UUID ending in 'aae'
         const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26aae";
 
         let wakeLock = null;
@@ -186,13 +192,14 @@
                 await requestWakeLock();
             } catch (error) {
                 console.log('Bluetooth connection failed: ', error);
+                alert('Connection failed: ' + error.message);
             }
         }
 
         function handleTelemetryData(event) {
             const value = event.target.value;
             
-            // Map incoming TelemetryPacket matching 29-byte packed C++ struct layout
+            // Map the incoming TelemetryPacket binary structure matching packed C++ struct layout
             const afr    = value.getFloat32(0, true);
             const clt    = value.getInt16(4, true);
             const oilt   = value.getInt16(6, true);

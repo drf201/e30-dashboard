@@ -168,7 +168,6 @@
     </div>
 
     <script>
-        // Make sure these match your Arduino .ino file character-for-character (36 chars each)
         const SERVICE_UUID        = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
         const CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
@@ -212,7 +211,8 @@
                 await requestWakeLock();
             } catch (error) {
                 console.log('Bluetooth connection failed: ', error);
-                statusEl.textContent = "Error: " + error.message;
+                let errString = error.message || error.toString() || JSON.stringify(error);
+                statusEl.textContent = "Error: " + errString;
                 statusEl.style.color = "#ff3333";
             }
         }

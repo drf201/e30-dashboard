@@ -223,4 +223,41 @@
                 const vss    = val.getInt16(12, true);
                 const mpg    = val.getFloat32(14, true);
                 const avgmpg = val.getFloat32(18, true);
-                const rpm    = val.getUint16(22
+                const rpm    = val.getUint16(22, true);
+                const volt   = val.getFloat32(24, true);
+                const online = val.getUint8(28);
+
+                // If ECU heartbeat drops offline, show OFFLINE warning
+                if (online === 0) {
+                    const ids = ['afr', 'oilt', 'oilp', 'clt', 'iat', 'mpg', 'avgmpg', 'volt', 'rpm', 'vss'];
+                    ids.forEach(id => {
+                        const el = document.getElementById(id);
+                        el.textContent = "OFFLINE";
+                        el.classList.add('offline');
+                    });
+                    return;
+                }
+
+                const elements = {
+                    'afr': afr.toFixed(1) + '<span class="unit">AFR</span>',
+                    'clt': clt + '<span class="unit">&deg;F</span>',
+                    'oilt': oilt + '<span class="unit">&deg;F</span>',
+                    'oilp': oilp + '<span class="unit">PSI</span>',
+                    'iat': iat + '<span class="unit">&deg;F</span>',
+                    'mpg': mpg.toFixed(1) + '<span class="unit">INST</span>',
+                    'avgmpg': avgmpg.toFixed(1) + '<span class="unit">AVG</span>',
+                    'volt': volt.toFixed(1) + '<span class="unit">V</span>',
+                    'rpm': rpm + '<span class="unit">RPM</span>',
+                    'vss': vss + '<span class="unit<span>MPH</span>'
+                };
+
+                for (const [id, html] of Object.entries(elements)) {
+                    const el = document.getElementById(id);
+                    el.innerHTML = html;
+                    el.classList.remove('offline');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

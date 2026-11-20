@@ -152,6 +152,11 @@
             <div class="lane-split"><div class="label">System Volt</div><div id="volt" class="number offline">OFFLINE</div></div>
             <div class="lane-split"><div class="label">Engine RPM</div><div id="rpm" class="number offline">OFFLINE</div></div>
         </div>
+
+        <div class="grid-row">
+            <div class="lane-split"><div class="label">Altitude</div><div id="alt" class="number offline">OFFLINE</div></div>
+            <div class="lane-split"><div class="label">GPS Status</div><div id="gps-status" class="number">--</div></div>
+        </div>
         
         <div class="lane-hero"><div class="label">Vehicle Speed (VSS)</div><div id="vss" class="number offline">OFFLINE</div></div>
     </div>
@@ -203,7 +208,7 @@
             statusEl.textContent = "Disconnected. Tap to reconnect.";
             statusEl.style.color = "#ff3333";
 
-            // Reset all gauges back to OFFLINE state
+            // Reset CAN/BLE gauges back to OFFLINE state (keep altitude independent)
             const ids = ['afr', 'oilt', 'oilp', 'clt', 'iat', 'mpg', 'avgmpg', 'volt', 'rpm', 'vss'];
             ids.forEach(id => {
                 const el = document.getElementById(id);
@@ -227,7 +232,7 @@
                 const volt   = val.getFloat32(24, true);
                 const online = val.getUint8(28);
 
-                // If ECU heartbeat drops offline, show OFFLINE warning
+                // If ECU heartbeat drops offline, show OFFLINE warning on CAN gauges
                 if (online === 0) {
                     const ids = ['afr', 'oilt', 'oilp', 'clt', 'iat', 'mpg', 'avgmpg', 'volt', 'rpm', 'vss'];
                     ids.forEach(id => {
@@ -248,7 +253,7 @@
                     'avgmpg': avgmpg.toFixed(1) + '<span class="unit">AVG</span>',
                     'volt': volt.toFixed(1) + '<span class="unit">V</span>',
                     'rpm': rpm + '<span class="unit">RPM</span>',
-                    'vss': vss + '<span class="unit<span>MPH</span>'
+                    'vss': vss + '<span class="unit">MPH</span>'
                 };
 
                 for (const [id, html] of Object.entries(elements)) {
@@ -258,6 +263,41 @@
                 }
             }
         }
+
+        function startAltitudeWatcher() {
+            const altEl = document.getElementById('alt');
+            const gpsEl = document.getElementById('gps-status');
+
+            if (!('geolocation' in navigator)) {
+                if (gpsEl) gpsEl.innerHTML = 'N/A';
+                return;
+            }
+
+            navigator.geolocation.watchPosition(
+                (pos) => {
+                    if (pos.coords.altitude !== null && !isNaN(pos.coords.altitude)) {
+                        const altFeet = Math.round(pos.coords.altitude * 3.28084);
+                        altEl.innerHTML = altFeet + '<span class="unit">FT</span>';
+                        altEl.classList.remove('offline');
+                        if (gpsEl) {
+                            gpsEl.innerHTML = 'LOCK';
+                            gpsEl.classList.remove('offline');
+                        }
+                    } else {
+                        altEl.innerHTML = '--<span class="unit">FT</span>';
+                        altEl.classList.remove('offline');
+                        if (gpsEl) gpsEl.innerHTML = 'WAIT';
+                    }
+                },
+                (err) => {
+                    console.log('GPS Error:', err);
+                    if (gpsEl) gpsEl.innerHTML = 'DENIED';
+                },
+                { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
+            );
+        }
+
+        window.addEventListener('DOMContentLoaded', startAltitudeWatcher);
     </script>
 </body>
 </html>
